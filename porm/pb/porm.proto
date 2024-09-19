@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package porm;
+
+option go_package = "./pb";
+
+message Page{
+  uint64 offset = 1;
+  uint64 limit = 2;
+  int64 total = 3;
+}
+
+message OrderBy{
+  string key = 1;
+  bool desc = 2;
+}
+
+message TestData{
+  uint64 id = 1;
+  string name = 2;
+  uint32 status = 3;
+  bool enable = 4;
+  bytes content = 5;
+  int32 like = 6;
+  float score = 7;
+  int64 create_time = 10;
+  int64 update_time = 11;
+}
