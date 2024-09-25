@@ -3,6 +3,7 @@ module github.com/boyapple/go-database/gorm
 go 1.20
 
 require (
+	github.com/boyapple/go-common/xmux v0.0.0-20240923123027-065de01b5a6b
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.12
 )

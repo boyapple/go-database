@@ -1,3 +1,5 @@
+github.com/boyapple/go-common/xmux v0.0.0-20240923123027-065de01b5a6b h1:kDiCeyL0qJs7xtUWy98cV9/DgrehHXytJeojhGWzbpg=
+github.com/boyapple/go-common/xmux v0.0.0-20240923123027-065de01b5a6b/go.mod h1:4Tr5+wrz07OQ+GvT9Q0i41m/t1hQnGm643e8XLH0gNo=
 github.com/go-sql-driver/mysql v1.7.0 h1:ueSltNNllEqE3qcWBTD0iQd3IpL/6U+mJxLkazJ7YPc=
 github.com/go-sql-driver/mysql v1.7.0/go.mod h1:OXbVy3sEdcQ2Doequ6Z5BW6fXNQTmx+9S1MCJN5yJMI=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=

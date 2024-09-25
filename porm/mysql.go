@@ -6,20 +6,19 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/golang/protobuf/proto"
-
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang/protobuf/proto"
 )
 
-func New(dsn string) Client {
+func New(dsn string) (Client, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		panic("open db err" + err.Error())
+		return nil, err
 	}
 	if err = db.Ping(); err != nil {
-		panic("ping db err" + err.Error())
+		return nil, err
 	}
-	return &mysqlCli{db: db}
+	return &mysqlCli{db: db}, nil
 }
 
 type mysqlCli struct {
