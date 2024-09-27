@@ -1,4 +1,4 @@
-package gorm
+package db
 
 import (
 	"github.com/boyapple/go-common/xmux"
@@ -8,15 +8,33 @@ import (
 
 var dbMux = xmux.New[string, *gorm.DB]()
 
-func New(name string, cfg *Config) (*gorm.DB, error) {
-	db, err := dbMux.Get(name)
-	if err == nil {
-		return db, nil
+type Config struct {
+	Dsn string
+}
+
+type ConfigOption func(*Config)
+
+func Get(name string) (*gorm.DB, error) {
+	return dbMux.Get(name)
+}
+
+func Register(name string, cfg *Config) error {
+	db, err := New(cfg.Dsn)
+	if err != nil {
+		return err
 	}
-	db, err = gorm.Open(mysql.Open(cfg.Dsn), &gorm.Config{})
+	dbMux.Register(name, db)
+	return nil
+}
+
+func New(dsn string, cfgOpts ...ConfigOption) (*gorm.DB, error) {
+	cfg := &Config{}
+	for _, o := range cfgOpts {
+		o(cfg)
+	}
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	dbMux.Register(name, db)
 	return db, nil
 }

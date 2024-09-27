@@ -1,36 +1,16 @@
-package gorm
-
-import "gorm.io/gorm"
+package db
 
 type Options struct {
-	Page      *Page
-	Condition Condition
-}
-
-type Option func(*Options)
-
-func WithCondition(condition Condition) Option {
-	return func(o *Options) {
-		o.Condition = condition
-	}
-}
-
-func WithPage(offset, limit int) Option {
-	return func(o *Options) {
-		o.Page = &Page{
-			Offset: offset,
-			Limit:  limit,
-		}
-	}
-}
-
-type Condition interface {
-	Where() func(db *gorm.DB) *gorm.DB
+	Page         *Page
+	Condition    Conditions
+	OnlyColumn   []string // 用于on duplicate key update语句的条件字段
+	UpdateColumn []string // 指定需要更新的列
 }
 
 type Page struct {
-	Offset int
-	Limit  int
+	Offset int   `json:"offset"`
+	Limit  int   `json:"limit"`
+	Count  int64 `json:"count"`
 }
 
 func (p *Page) GetOffset() int {
@@ -45,4 +25,18 @@ func (p *Page) GetLimit() int {
 		return 10
 	}
 	return p.Limit
+}
+
+type Option func(*Options)
+
+func WithCondition(condition ...Condition) Option {
+	return func(o *Options) {
+		o.Condition = condition
+	}
+}
+
+func WithPage(page *Page) Option {
+	return func(o *Options) {
+		o.Page = page
+	}
 }
