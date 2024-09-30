@@ -2,73 +2,67 @@ package db
 
 import (
 	"context"
-	"fmt"
-
+	"github.com/boyapple/go-database/gorm/condition"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"gorm.io/gorm/schema"
 )
 
-// Client 只用于单个对象(单张表)的client,传入的类型T必须实现 TableName()string 函数
-type Client[T any] interface {
-	Get(ctx context.Context, condition Condition) (T, error)
+type Client[T schema.Tabler] interface {
+	// Get 获取单条数据
+	Get(ctx context.Context, condition condition.Condition) (T, error)
+	// List 获取列表数据
 	List(ctx context.Context, opts ...Option) ([]T, error)
+	// Count 获取总数
 	Count(ctx context.Context, opts ...Option) (int64, error)
+	// Create 创建
 	Create(ctx context.Context, t T, opts ...Option) error
-	Updates(ctx context.Context, t T, opts ...Option) error
+	// Update 更新
+	Update(ctx context.Context, t T, condition condition.Condition) error
+
+	UpdateKeyValue(ctx context.Context, keyValue map[string]interface{}, condition condition.Condition) error
 }
 
-func NewClient[T any](serviceName string) Client[T] {
-	return &gormClient[T]{serviceName: serviceName}
-}
-
-type gormClient[T any] struct {
-	serviceName string
-}
-
-func (c *gormClient[T]) Get(ctx context.Context, condition Condition) (T, error) {
+func New[T schema.Tabler](serviceName string) Client[T] {
 	var t T
-	if condition == nil {
-		return t, fmt.Errorf("must setup condition")
+	return &impl[T]{
+		serviceName: serviceName,
+		tableName:   t.TableName(),
 	}
-	db, err := c.getDB(ctx)
+}
+
+type impl[T any] struct {
+	serviceName string
+	tableName   string
+}
+
+func (i *impl[T]) Get(ctx context.Context, condition condition.Condition) (T, error) {
+	var t T
+	db, err := i.getDB(ctx)
 	if err != nil {
 		return t, err
 	}
-	where, err := condition.Where()
+	scope, err := condition.Compile()
 	if err != nil {
 		return t, err
 	}
-	if err = db.Scopes(where).First(&t).Error; err != nil {
+	if err = db.Scopes(scope).First(&t).Error; err != nil {
 		return t, err
 	}
 	return t, nil
 }
 
-func (c *gormClient[T]) List(ctx context.Context, opts ...Option) ([]T, error) {
-	db, err := c.getDB(ctx)
+func (i *impl[T]) List(ctx context.Context, opts ...Option) ([]T, error) {
+	db, err := i.getDB(ctx)
 	if err != nil {
 		return nil, err
 	}
-	opt := &Options{}
-	for _, o := range opts {
-		o(opt)
-	}
-	if len(opt.Condition) > 0 {
-		scopes, err := opt.Condition.Build()
+	opt := i.getOptions(opts...)
+	if len(opt.MultiCondition) > 0 {
+		conditions, err := opt.MultiCondition.Build()
 		if err != nil {
 			return nil, err
 		}
-		db.Scopes(scopes...)
-	}
-	if opt.Page != nil {
-		if err = db.Count(&opt.Page.Count).Error; err != nil {
-			return nil, err
-		}
-		db.Scopes(func(db *gorm.DB) *gorm.DB {
-			offset := opt.Page.GetOffset()
-			limit := opt.Page.GetLimit()
-			return db.Offset((offset - 1) * limit).Limit(limit)
-		})
+		db.Scopes(conditions...)
 	}
 	var list []T
 	if err = db.Find(&list).Error; err != nil {
@@ -77,76 +71,67 @@ func (c *gormClient[T]) List(ctx context.Context, opts ...Option) ([]T, error) {
 	return list, nil
 }
 
-func (c *gormClient[T]) Count(ctx context.Context, opts ...Option) (int64, error) {
-	db, err := c.getDB(ctx)
+func (i *impl[T]) Count(ctx context.Context, opts ...Option) (int64, error) {
+	db, err := i.getDB(ctx)
 	if err != nil {
 		return 0, err
 	}
-	opt := &Options{}
-	for _, o := range opts {
-		o(opt)
-	}
-	if len(opt.Condition) > 0 {
-		scopes, err := opt.Condition.Build()
+	opt := i.getOptions(opts...)
+	if len(opt.MultiCondition) > 0 {
+		conditions, err := opt.MultiCondition.Build()
 		if err != nil {
 			return 0, err
 		}
-		db.Scopes(scopes...)
+		db.Scopes(conditions...)
 	}
 	var count int64
 	if err = db.Count(&count).Error; err != nil {
-		return 0, nil
+		return 0, err
 	}
 	return count, nil
 }
 
-func (c *gormClient[T]) Create(ctx context.Context, t T, opts ...Option) error {
-	db, err := c.getDB(ctx)
+func (i *impl[T]) Create(ctx context.Context, t T, opts ...Option) error {
+	//opt := i.getOptions(opts...)
+	db, err := i.getDB(ctx)
 	if err != nil {
 		return err
-	}
-	opt := &Options{}
-	for _, o := range opts {
-		o(opt)
-	}
-	if len(opt.OnlyColumn) > 0 {
-		var columns []clause.Column
-		for _, column := range opt.OnlyColumn {
-			columns = append(columns, clause.Column{Name: column})
-		}
-		conflict := &clause.OnConflict{
-			Columns: columns,
-		}
-		if len(opt.UpdateColumn) == 0 {
-			conflict.UpdateAll = true
-		} else {
-			conflict.DoUpdates = clause.AssignmentColumns(opt.UpdateColumn)
-		}
-		db.Clauses(conflict)
 	}
 	return db.Create(t).Error
 }
 
-func (c *gormClient[T]) Updates(ctx context.Context, t T, opts ...Option) error {
-	db, err := c.getDB(ctx)
+func (i *impl[T]) Update(ctx context.Context, t T, condition condition.Condition) error {
+	db, err := i.getDB(ctx)
 	if err != nil {
 		return err
-	}
-	opt := &Options{}
-	for _, o := range opts {
-		o(opt)
-	}
-	if len(opt.UpdateColumn) > 0 {
-		db.Select(opt.UpdateColumn)
 	}
 	return db.Updates(t).Error
 }
 
-func (c *gormClient[T]) getDB(ctx context.Context) (*gorm.DB, error) {
-	db, err := Get(c.serviceName)
+func (i *impl[T]) UpdateKeyValue(ctx context.Context, keyValue map[string]interface{}, condition condition.Condition) error {
+	db, err := i.getDB(ctx)
+	if err != nil {
+		return err
+	}
+	where, err := condition.Compile()
+	if err != nil {
+		return err
+	}
+	return db.Scopes(where).Updates(keyValue).Error
+}
+
+func (i *impl[T]) getDB(ctx context.Context) (*gorm.DB, error) {
+	db, err := dbMux.Get(i.serviceName)
 	if err != nil {
 		return nil, err
 	}
-	var t T
-	return db.WithContext(ctx).Model(&t), nil
+	return db.WithContext(ctx).Table(i.tableName), nil
+}
+
+func (i *impl[T]) getOptions(opts ...Option) *Options {
+	opt := &Options{}
+	for _, o := range opts {
+		o(opt)
+	}
+	return opt
 }
