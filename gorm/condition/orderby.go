@@ -6,26 +6,26 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-func NewOrderByCondition(field string, desc bool) Condition {
+func NewOrderByCondition(column string, desc bool) Condition {
 	return &OrderBy{
-		Field: field,
-		Desc:  desc,
+		Column: column,
+		Desc:   desc,
 	}
 }
 
 // OrderBy 排序条件
 type OrderBy struct {
-	Field string
-	Desc  bool
+	Column string
+	Desc   bool
 }
 
 func (o *OrderBy) Compile() (func(*gorm.DB) *gorm.DB, error) {
-	if o.Field == "" {
+	if o.Column == "" {
 		return nil, fmt.Errorf("invalid order filed")
 	}
 	return func(db *gorm.DB) *gorm.DB {
 		return db.Order(clause.OrderByColumn{
-			Column: clause.Column{Name: o.Field},
+			Column: clause.Column{Name: o.Column},
 			Desc:   o.Desc,
 		})
 	}, nil

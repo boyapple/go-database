@@ -9,7 +9,8 @@ import (
 var dbMux = xmux.New[string, *gorm.DB]()
 
 type Config struct {
-	Dsn string
+	Dsn        string
+	StartDebug bool
 }
 
 func Register(name string, cfg *Config) error {
@@ -17,6 +18,9 @@ func Register(name string, cfg *Config) error {
 	if err != nil {
 		return err
 	}
-	dbMux.Register(name, db.Debug())
+	if cfg.StartDebug {
+		db.Debug()
+	}
+	dbMux.Register(name, db)
 	return nil
 }
